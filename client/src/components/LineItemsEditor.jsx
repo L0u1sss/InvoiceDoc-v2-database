@@ -25,13 +25,13 @@ export default function LineItemsEditor({ value, onChange }) {
     function addRow() {
         onChange([
             ...items,
-            { product_code: "", product_name: "", quantity: 1, unit_price: 0 },
+            { product_code: "", product_name: "", quantity: 1, unit_price: 0, line_discount_percent: 0 },
         ]);
     }
 
     // Insert a new empty row after index i (add row in between)
     function insertRowAfter(i) {
-        const newRow = { product_code: "", product_name: "", quantity: 1, unit_price: 0 };
+        const newRow = { product_code: "", product_name: "", quantity: 1, unit_price: 0, line_discount_percent: 0 };
         const next = [...items.slice(0, i + 1), newRow, ...items.slice(i + 1)];
         onChange(next);
     }
@@ -99,7 +99,7 @@ export default function LineItemsEditor({ value, onChange }) {
     function onPickProduct(i, productCode, productData) {
         setProductErrorRow(null);
         if (!productData) {
-            update(i, { product_code: "", product_name: "", product_label: "", units_code: "", unit_price: 0 });
+            update(i, { product_code: "", product_name: "", product_label: "", units_code: "", unit_price: 0, line_discount_percent: 0 });
             return;
         }
 
@@ -139,7 +139,7 @@ export default function LineItemsEditor({ value, onChange }) {
                 });
             })
             .catch(() => {
-                update(i, { product_name: "", product_label: "", units_code: "", unit_price: 0 });
+                update(i, { product_name: "", product_label: "", units_code: "", unit_price: 0, line_discount_percent: 0 });
                 setProductErrorRow(i);
                 toast.error(`Product not found: ${code}`);
             });
@@ -149,6 +149,16 @@ export default function LineItemsEditor({ value, onChange }) {
         const q = Number(it.quantity || 0);
         const up = Number(it.unit_price || 0);
         return q * up;
+    }
+
+    function computeDiscountAmount(it) {
+        const ext = computeExtended(it);
+        const percent = Number(it.line_discount_percent || 0);
+        return ext * (percent / 100);
+    }
+
+    function computeNetPrice(it) {
+        return computeExtended(it) - computeDiscountAmount(it);
     }
 
     const total = items.reduce((s, it) => s + computeExtended(it), 0);
@@ -187,14 +197,17 @@ export default function LineItemsEditor({ value, onChange }) {
                 <table className="modern-table" style={{ fontSize: '0.9rem' }}>
                     <thead>
                         <tr>
-                            <th style={{ width: '60px' }} className="text-center">#</th>
-                            <th style={{ width: '18%' }}>Product Code <span className="required-marker">*</span></th>
-                            <th style={{ width: '22%' }}>Product Name</th>
-                            <th style={{ width: '8%' }} className="text-center">Unit</th>
-                            <th style={{ width: '10%' }} className="text-right">Qty <span className="required-marker">*</span></th>
-                            <th style={{ width: '12%' }} className="text-right">Unit Price <span className="required-marker">*</span></th>
-                            <th style={{ width: '12%' }} className="text-right">Extended</th>
-                            <th style={{ width: '100px' }} className="text-center">Actions</th>
+                            <th style={{ width: '40px' }} className="text-center">#</th>
+                            <th style={{ width: '12%' }}>Product Code <span className="required-marker">*</span></th>
+                            <th style={{ width: '15%' }}>Product Name</th>
+                            <th style={{ width: '6%' }} className="text-center">Unit</th>
+                            <th style={{ width: '7%' }} className="text-right">Qty</th>
+                            <th style={{ width: '10%' }} className="text-right">Unit Price</th>
+                            <th style={{ width: '10%' }} className="text-right">Extended</th>
+                            <th style={{ width: '8%' }} className="text-right">Disc %</th>
+                            <th style={{ width: '10%' }} className="text-right">Disc Amt</th>
+                            <th style={{ width: '10%' }} className="text-right">Net Price</th>
+                            <th style={{ width: '80px' }} className="text-center">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -223,6 +236,8 @@ export default function LineItemsEditor({ value, onChange }) {
                                 onProductCodeBlur={handleProductCodeBlur}
                                 formatBaht={formatBaht}
                                 computeExtended={computeExtended}
+                                computeDiscountAmount={computeDiscountAmount}
+                                computeNetPrice={computeNetPrice}
                             />
                         ))}
                         {items.length === 0 && (

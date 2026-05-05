@@ -11,6 +11,8 @@ const REPORT_ENDPOINTS = {
   "product-sales": "/api/reports/product-sales",
   "monthly-sales": "/api/reports/product-monthly-sales",
   "customer-sales": "/api/reports/customer-sales",
+  "receipts": "/api/reports/receipts",
+  "receipt-invoices": "/api/reports/receipt-invoices",
 };
 
 /**

@@ -9,4 +9,7 @@ r.get("/product-sales", c.getSalesByProductSummary);
 r.get("/customer-sales", c.getSalesByCustomerSummary);
 r.get("/product-monthly-sales", c.getSalesByProductMonthlySummary);
 
+r.get("/receipts", c.getReceiptsReport);
+r.get("/receipt-invoices", c.getReceiptInvoicesReport);
+
 export default r;

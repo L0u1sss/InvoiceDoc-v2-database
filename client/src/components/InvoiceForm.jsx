@@ -3,8 +3,11 @@
 import React from "react";
 import LineItemsEditor from "./LineItemsEditor.jsx";
 import CustomerPickerModal from "./CustomerPickerModal.jsx";
+import SalesPersonPickerModal from "./SalesPersonPickerModal.jsx";
 import { AlertModal } from "./Modal.jsx";
 import { getCustomer } from "../api/customers.api.js";
+import { getSalesPerson } from "../api/sales_persons.api.js";
+import { getConfig } from "../api/configurations.api.js";
 import { formatBaht } from "../utils.js";
 
 export default function InvoiceForm({ onSubmit, submitting, initialData }) {
@@ -13,11 +16,16 @@ export default function InvoiceForm({ onSubmit, submitting, initialData }) {
   const [customerCode, setCustomerCode] = React.useState("");
   const [invoiceDate, setInvoiceDate] = React.useState(new Date().toISOString().slice(0, 10));
   const [vatRate, setVatRate] = React.useState(0.07);
+  // Add sales person id state
+  const [salesPersonId, setSalesPersonId] = React.useState("");
   const [items, setItems] = React.useState([{ product_code: "", quantity: 1, unit_price: 0 }]);
   const [alertModal, setAlertModal] = React.useState({ isOpen: false, title: "Validation Error", message: "" });
   const [customerModalOpen, setCustomerModalOpen] = React.useState(false);
+  const [salesPersonModalOpen, setSalesPersonModalOpen] = React.useState(false);
   const [customerDetails, setCustomerDetails] = React.useState(null); // name + address (readonly)
   const [customerLoadError, setCustomerLoadError] = React.useState("");
+  const [salesPersonDetails, setSalesPersonDetails] = React.useState(null); // name (readonly)
+  const [salesPersonLoadError, setSalesPersonLoadError] = React.useState("");
 
   // When customer code is set (from LoV or initialData), fetch name and address
   React.useEffect(() => {
@@ -59,6 +67,45 @@ export default function InvoiceForm({ onSubmit, submitting, initialData }) {
       });
   };
 
+  // Load sales person by id on blur (user typed id)
+  const handleSalesPersonBlur = () => {
+    const id = String(salesPersonId || "").trim();
+    if (!id) {
+      setSalesPersonDetails(null);
+      setSalesPersonLoadError("");
+      return;
+    }
+    setSalesPersonLoadError("");
+    getSalesPerson(id)
+      .then((data) => setSalesPersonDetails(data))
+      .catch(() => {
+        setSalesPersonDetails(null);
+        setSalesPersonLoadError("Sales Person not found");
+      });
+  };
+
+  React.useEffect(() => {
+    const id = String(salesPersonId || "").trim();
+    if (!id) {
+      setSalesPersonDetails(null);
+      setSalesPersonLoadError("");
+      return;
+    }
+    setSalesPersonLoadError("");
+    let cancelled = false;
+    getSalesPerson(id)
+      .then((data) => {
+        if (!cancelled) setSalesPersonDetails(data);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSalesPersonDetails(null);
+          setSalesPersonLoadError("Sales Person not found");
+        }
+      });
+    return () => { cancelled = true; };
+  }, [salesPersonId]);
+
   React.useEffect(() => {
     if (initialData) {
       setInvoiceNo(initialData.invoice_no);
@@ -66,21 +113,38 @@ export default function InvoiceForm({ onSubmit, submitting, initialData }) {
       const d = initialData.invoice_date ? new Date(initialData.invoice_date).toISOString().slice(0, 10) : "";
       setInvoiceDate(d);
       setVatRate(Number(initialData.vat_rate || 0.07));
+      // Load sales person id from existing data if editing
+      setSalesPersonId(initialData.sales_person_code || "");
       const mappedItems = (initialData.line_items || []).map(li => ({
         line_item_id: li.line_item_id,
         product_code: li.product_code || "",
         product_label: li.product_label || `${li.product_code || ""} - ${li.product_name || ""}`.replace(/^ - /, ""),
         units_code: li.units_code || "",
         quantity: li.quantity,
-        unit_price: Number(li.unit_price)
+        unit_price: Number(li.unit_price),
+        line_discount_percent: Number(li.line_discount_percent || 0),
       }));
       setItems(mappedItems.length > 0 ? mappedItems : [{ product_code: "", quantity: 1, unit_price: 0 }]);
+    } else {
+      // Fetch default VAT rate from configuration
+      getConfig("vat_percent")
+        .then((res) => {
+          if (res && res.value) {
+            setVatRate(Number(res.value) / 100);
+          }
+        })
+        .catch((err) => console.error("Error fetching default VAT rate:", err));
     }
   }, [initialData]);
 
-  const subtotal = items.reduce((s, it) => s + Number(it.quantity || 0) * Number(it.unit_price || 0), 0);
-  const vat = subtotal * Number(vatRate || 0);
-  const amountDue = subtotal + vat;
+  const totalPrice = items.reduce((s, it) => s + (Number(it.quantity || 0) * Number(it.unit_price || 0)), 0);
+  const totalDiscount = items.reduce((s, it) => {
+    const ext = Number(it.quantity || 0) * Number(it.unit_price || 0);
+    return s + (ext * (Number(it.line_discount_percent || 0) / 100));
+  }, 0);
+  const netPrice = totalPrice - totalDiscount;
+  const vat = netPrice * Number(vatRate || 0);
+  const amountDue = netPrice + vat;
 
   const [autoCode, setAutoCode] = React.useState(true);
 
@@ -97,6 +161,10 @@ export default function InvoiceForm({ onSubmit, submitting, initialData }) {
     if (!invoiceDate || String(invoiceDate).trim() === "") errs.push("Date should not be null");
     if (!String(customerCode || "").trim()) errs.push("Customer Code should not be null");
     else if (!customerDetails) errs.push("Customer must be selected from list (enter code and blur, or use LoV)");
+    
+    // Add validation for Sales Person
+    if (!String(salesPersonId || "").trim()) errs.push("Sales Person Code should not be null");
+    
     if (!initialData && !autoCode && !String(invoiceNo || "").trim()) errs.push("Invoice No should not be null");
     items.forEach((it, i) => {
       const row = i + 1;
@@ -136,11 +204,14 @@ export default function InvoiceForm({ onSubmit, submitting, initialData }) {
       customer_code: String(customerCode).trim(),
       invoice_date: invoiceDate,
       vat_rate: Number(vatRate),
+      // Include sales person code in the request to backend
+      sales_person_code: String(salesPersonId).trim(),
       line_items: items.map((x) => {
         const out = {
           product_code: String(x.product_code || "").trim(),
           quantity: Number(x.quantity),
           unit_price: x.unit_price === "" || x.unit_price === null ? undefined : Number(x.unit_price),
+          line_discount_percent: Number(x.line_discount_percent || 0),
         };
         if (x.line_item_id != null && Number(x.line_item_id) > 0) out.id = Number(x.line_item_id);
         return out;
@@ -250,6 +321,18 @@ export default function InvoiceForm({ onSubmit, submitting, initialData }) {
               }}
             />
 
+            {/* เพิ่ม Sales Person Picker Modal */}
+            <SalesPersonPickerModal
+              isOpen={salesPersonModalOpen}
+              onClose={() => setSalesPersonModalOpen(false)}
+              initialSearch={salesPersonId}
+              onSelect={(id, label) => {
+                setSalesPersonId(String(id));
+                setSalesPersonModalOpen(false);
+                // Hint: ถ้าอยากได้ชื่อมาโชว์ประกบเหมือนหน้า Customer ให้เอา label ไปใช้ต่อได้เลยครับ
+              }}
+            />
+
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div className="form-group">
                 <label className="form-label">Invoice Date <span className="required-marker">*</span></label>
@@ -277,6 +360,58 @@ export default function InvoiceForm({ onSubmit, submitting, initialData }) {
                   </span>
                 </div>
               </div>
+
+              {/* Add Sales Person ID Input with LoV */}
+              <div className="form-group" style={{ gridColumn: "1 / -1", display: 'grid', gridTemplateColumns: 'minmax(0,1fr) minmax(0,1fr)', gap: 12 }}>
+                <div>
+                  <label className="form-label">Sales Person Code <span className="required-marker">*</span></label>
+                  <div style={{ display: "flex", gap: 8, alignItems: "stretch" }}>
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={salesPersonId}
+                      onChange={(e) => setSalesPersonId(e.target.value)}
+                      onBlur={handleSalesPersonBlur}
+                      placeholder="e.g. S001"
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => setSalesPersonModalOpen(true)}
+                      title="List of Values"
+                    >
+                      LoV
+                    </button>
+                    {salesPersonId && (
+                      <button
+                        type="button"
+                        onClick={() => { setSalesPersonId(""); setSalesPersonDetails(null); setSalesPersonLoadError(""); }}
+                        title="Clear"
+                        style={{
+                          padding: "0 12px",
+                          border: "1px solid var(--border)",
+                          borderRadius: "var(--radius-sm)",
+                          background: "var(--bg-body)",
+                          color: "var(--text-muted)",
+                          cursor: "pointer",
+                          fontSize: "1.2rem",
+                          lineHeight: 1,
+                        }}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                  {salesPersonLoadError && (
+                    <span style={{ fontSize: "0.8rem", color: "#ef4444", marginTop: 4, display: "block" }}>{salesPersonLoadError}</span>
+                  )}
+                </div>
+                <div>
+                  <label className="form-label">Sales Person Name</label>
+                  <input className="form-control" disabled value={salesPersonDetails?.name ?? ""} readOnly placeholder="—" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -285,8 +420,16 @@ export default function InvoiceForm({ onSubmit, submitting, initialData }) {
           <h4>Summary</h4>
           <div style={{ display: "grid", gap: 8 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", color: "var(--text-muted)" }}>
-              <span>Subtotal</span>
-              <span className="amount">{submitting ? "..." : formatBaht(subtotal)}</span>
+              <span>Total Price</span>
+              <span className="amount">{submitting ? "..." : formatBaht(totalPrice)}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", color: "#ef4444" }}>
+              <span>Total Discount</span>
+              <span className="amount">{submitting ? "..." : `- ${formatBaht(totalDiscount)}`}</span>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", color: "var(--text-main)", fontWeight: 500 }}>
+              <span>Net Price</span>
+              <span className="amount">{submitting ? "..." : formatBaht(netPrice)}</span>
             </div>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.875rem", color: "var(--text-muted)" }}>
               <span>VAT ({(vatRate * 100).toFixed(0)}%)</span>

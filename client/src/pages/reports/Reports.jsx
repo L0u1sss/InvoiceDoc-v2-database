@@ -83,6 +83,45 @@ const REPORT_CONFIG = {
         { key: "value_sold", label: "Value", align: "right", sortable: true, style: { fontWeight: 600 }, render: (v) => formatBaht(v) }
       ];
     }
+  },
+  "receipts": {
+    title: "Receipts List",
+    subtitle: "List of all receipts recorded",
+    emptyMessage: "No receipts found. Try different filters.",
+    getColumns: (filters) => {
+      return [
+        { key: "receipt_no", label: "Receipt No", sortable: true, render: (v) => <span className="font-bold">{v}</span> },
+        { key: "receipt_date", label: "Date", sortable: true, render: (v) => formatDate(v) },
+        { key: "customer_code", label: "Customer", sortable: true, render: (_, row) => [row.customer_name, row.customer_code ? `(${row.customer_code})` : ""].filter(Boolean).join(" ") || "-" },
+        { key: "payment_method", label: "Payment Method", sortable: false },
+        { key: "total_received", label: "Total Amount", align: "right", sortable: true, style: { fontWeight: 600, color: "var(--primary)" }, render: (v) => formatBaht(v) }
+      ];
+    }
+  },
+  "receipt-invoices": {
+    title: "Invoices vs Receipts",
+    subtitle: "Summary of invoice payments to track active receivables",
+    emptyMessage: "No invoices matched your filters.",
+    getColumns: (filters) => {
+      return [
+        { key: "invoice_no", label: "Invoice No", sortable: true, render: (v) => <span className="font-bold">{v}</span> },
+        { key: "invoice_date", label: "Invoice Date", sortable: true, render: (v) => formatDate(v) },
+        { key: "customer_code", label: "Customer", sortable: true, render: (_, row) => [row.customer_name, row.customer_code ? `(${row.customer_code})` : ""].filter(Boolean).join(" ") || "-" },
+        { key: "amount_due", label: "Amount Due", align: "right", sortable: true, render: (v) => formatBaht(v) },
+        { key: "total_received", label: "Total Received", align: "right", sortable: true, style: { color: "var(--success)" }, render: (v) => formatBaht(v) },
+        { 
+          key: "amount_remain", 
+          label: "Remaining", 
+          align: "right", 
+          sortable: true, 
+          style: { fontWeight: 600 }, 
+          render: (v) => {
+             const val = Number(v);
+             return <span style={{ color: val > 0 ? "var(--danger)" : "var(--success)" }}>{formatBaht(val)}</span>;
+          } 
+        }
+      ];
+    }
   }
 };
 

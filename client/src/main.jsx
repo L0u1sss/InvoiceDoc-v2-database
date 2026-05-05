@@ -8,9 +8,14 @@ import InvoiceList from "./pages/invoices/InvoiceList.jsx";
 import InvoicePage from "./pages/invoices/InvoicePage.jsx";
 import CustomerList from "./pages/customers/CustomerList.jsx";
 import CustomerPage from "./pages/customers/CustomerPage.jsx";
+import SalesPersonList from "./pages/sales_persons/SalesPersonList.jsx";
+import SalesPersonPage from "./pages/sales_persons/SalesPersonPage.jsx";
+import ReceiptList from "./pages/receipts/ReceiptList.jsx";
+import ReceiptPage from "./pages/receipts/ReceiptPage.jsx";
 import ProductList from "./pages/products/ProductList.jsx";
 import ProductPage from "./pages/products/ProductPage.jsx";
 import Reports from "./pages/reports/Reports.jsx";
+import ReceiptInvoicesReport from "./pages/reports/ReceiptInvoicesReport.jsx";
 import { http } from "./api/http.js";
 import "./index.css";
 
@@ -68,9 +73,17 @@ function Sidebar() {
           <svg style={{ marginRight: 10 }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
           Invoices
         </NavLink>
+        <NavLink to="/receipts" className={getLinkClass}>
+          <svg style={{ marginRight: 10 }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4" width="20" height="16" rx="2" ry="2"></rect><line x1="2" y1="10" x2="22" y2="10"></line></svg>
+          Receipts
+        </NavLink>
         <NavLink to="/customers" className={getLinkClass}>
           <svg style={{ marginRight: 10 }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           Customers
+        </NavLink>
+        <NavLink to="/sales-persons" className={getLinkClass}>
+          <svg style={{ marginRight: 10 }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          Sales Persons
         </NavLink>
         <NavLink to="/products" className={getLinkClass}>
           <svg style={{ marginRight: 10 }} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
@@ -90,6 +103,12 @@ function Sidebar() {
           </NavLink>
           <NavLink to="/reports/customer-sales" className={getSubLinkClass}>
             Customer Buying
+          </NavLink>
+          <NavLink to="/reports/receipts" className={getSubLinkClass}>
+            Receipts List
+          </NavLink>
+          <NavLink to="/reports/receipt-invoices" className={getSubLinkClass}>
+            Receipt Invoices
           </NavLink>
         </SubMenu>
       </nav>
@@ -189,10 +208,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/invoices/new" element={<Layout><InvoicePage mode="create" /></Layout>} />
         <Route path="/invoices/:id" element={<Layout><InvoicePage mode="view" /></Layout>} />
         <Route path="/invoices/:id/edit" element={<Layout><InvoicePage mode="edit" /></Layout>} />
+        
+        <Route path="/receipts" element={<Layout><ReceiptList /></Layout>} />
+        <Route path="/receipts/new" element={<Layout><ReceiptPage mode="create" /></Layout>} />
+        <Route path="/receipts/:id" element={<Layout><ReceiptPage mode="view" /></Layout>} />
+        <Route path="/receipts/:id/edit" element={<Layout><ReceiptPage mode="edit" /></Layout>} />
         <Route path="/customers" element={<Layout><CustomerList /></Layout>} />
         <Route path="/customers/new" element={<Layout><CustomerPage mode="create" /></Layout>} />
         <Route path="/customers/:id" element={<Layout><CustomerPage mode="view" /></Layout>} />
         <Route path="/customers/:id/edit" element={<Layout><CustomerPage mode="edit" /></Layout>} />
+        <Route path="/sales-persons" element={<Layout><SalesPersonList /></Layout>} />
+        <Route path="/sales-persons/new" element={<Layout><SalesPersonPage mode="create" /></Layout>} />
+        <Route path="/sales-persons/:id" element={<Layout><SalesPersonPage mode="view" /></Layout>} />
+        <Route path="/sales-persons/:id/edit" element={<Layout><SalesPersonPage mode="edit" /></Layout>} />
         <Route path="/products" element={<Layout><ProductList /></Layout>} />
         <Route path="/products/new" element={<Layout><ProductPage mode="create" /></Layout>} />
         <Route path="/products/:id" element={<Layout><ProductPage mode="view" /></Layout>} />
@@ -201,6 +229,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <Route path="/reports/product-sales" element={<Layout><Reports type="product-sales" /></Layout>} />
         <Route path="/reports/monthly-sales" element={<Layout><Reports type="monthly-sales" /></Layout>} />
         <Route path="/reports/customer-sales" element={<Layout><Reports type="customer-sales" /></Layout>} />
+        <Route path="/reports/receipts" element={<Layout><Reports type="receipts" /></Layout>} />
+        <Route path="/reports/receipt-invoices" element={<Layout><ReceiptInvoicesReport /></Layout>} />
       </Routes>
     </BrowserRouter>
   </React.StrictMode>
